@@ -4,6 +4,8 @@ const controller = require('lib/wiring/controller');
 const models = require('app/models');
 const Upload = models.upload;
 
+const s3Upload = require('../../lib/aws-s3-upload');
+
 const multer = require('multer');
 const multerUpload = multer({ dest: '/tmp/'});
 
@@ -22,18 +24,23 @@ const show = (req, res, next) => {
 };
 
 const create = (req, res, next) => {
-  // let upload = Object.assign(req.body.upload, {
-  //   _owner: req.currentUser._id,
-  // });
-  console.log("req.body is", req.body);
-  console.log("req.file is", req.file);
-  // this is behaving like an echo server
-  res.json({
-    body: req.body
-  });
-  // Upload.create(upload)
-  //   .then(upload => res.json({ upload }))
-  //   .catch(err => next(err));
+  s3Upload(req.file)
+    .then(function(s3Response){
+      console.log("s3Upload ran, and returned: ", s3Response);
+      return Upload.create({
+        url: s3Response.Location,
+        title: req.body.image.title,
+      });
+    })
+    .then(function(upload){
+      console.log("inside 2nd then, uplaod is ", upload);
+      res.json({
+        body: upload
+      });
+    })
+    .catch(function(error){
+      next(error);
+    });
 };
 
 const update = (req, res, next) => {
